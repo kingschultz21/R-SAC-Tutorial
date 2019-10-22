@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Spatial Autocorrelation of Census Data using R</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Spatial Autocorrelation of Census Data using R</h1>
+
+</div>
+
+
+<div id="by-connor-schultz" class="section level4">
+<h4>By Connor Schultz</h4>
+</div>
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>Every 5 years a census in Canada is conducted by Statistics Canada. The census is one of the most important collections of data available to the public, as it contains accurate information country-wide pertaining to many attributes that can be used in all types of research. Census data is inherently spatial as the country is divided into census tracts and attributes are recorded for each tract. Spatial analysis is an important tool to use when dealing with census data. It allows the analyst to determine similarities, differences, correlations and many other relationships between one region and another.</p>
+<p>One of the most commonly used spatial analysis techniques is determining spatial auto correlation. Put simply, spatial auto correlation is how similar an object is to nearby objects. With measures of spatial auto correlation, analysts can determine if variables such as median income or unemployment rate are clustered, dispersed or randomly distributed in a given study area.</p>
+<p>In this tutorial, the R programming language along with census data will be used to show how to determine measures of spatial auto correlation in specific regions. This tutorial will use 2016 Canadian census data and a shape file of the Capital Regional District (CRD) of BC. The attributes that will be examined are median household income and post-secondary education. Various techniques such as Global and Local Morans I will be used to measure the spatial auto correlation of the attributes mentioned for the CRD census tracts. This tutorial is designed to be adaptable so the methods can be utilized for other census attributes and other census tracts.</p>
+</div>
+<div id="loading-libraries" class="section level2">
+<h2>Loading Libraries</h2>
+<p>One of the best ways to increase the power and effectiveness of the R programming language is to use packages. Packages contain functions and data developed by the open source community. To install a package the command <code>install.packages('package_name')</code> can be run in the R console, or the command can be implemented in the R script explicitly. Packages only need to be installed on to the machine once. To load the package for use in an R script, simply run the command <code>library(package_name)</code>. The packages will need to be reloaded upon each new session of R. The following packages will be used in the subsequent analysis:</p>
+<pre class="r"><code>library(plyr)
+library(dplyr)
+library(spdep)
+library(GISTools)
+library(raster)
+library(maptools)
+library(rgdal)
+library(tmap)
+library(BAMMtools)</code></pre>
+<p>The <code>plyr</code> and <code>dplyr</code> packages are used for data manipulation and preprocessing. The <code>GISTools</code>, <code>raster</code> and <code>rgdal</code> packages are used to manage and manipulate spatial data, such as the census data shape file used in this analysis. The <code>spdep</code> package handles the spatial statistics functions such as calculating the Morans I statistic. Finally, the <code>maptools</code>,<code>tmap</code> and <code>BAMMtools</code> will allow us to visualize our spatial data and plot our derived statistics.</p>
+</div>
+<div id="setting-working-directory" class="section level2">
+<h2>Setting Working Directory</h2>
+<p>A crucial step in any R project is setting the working directory so R knows where to look for files. Any easy way of obtaining the working directory path name in R-Studio is to run the <code>pwd</code> command on the command prompt of the project. Once the path name is obtained, it can be stored as a variable <code>dir</code> and used as input in the function <code>setwd()</code> to set the working directory.</p>
+<pre class="r"><code>dir &lt;- &quot;/home/connor/schoolwork_2020/first_semester/geog418/assignments/assignment3&quot;
+setwd(dir)</code></pre>
+</div>
+<div id="adding-data" class="section level2">
+<h2>Adding Data</h2>
+<p>The attribute data for this analysis is 2016 census data for the CRD, stored in a csv file. The csv file is read in using <code>read.csv()</code>, where <code>&quot;./data/CensusTractData.csv&quot;</code> is the path to the csv file. This file is then stored in a data frame as <code>census.16</code>. The spatial data used is a shape file of the CRD which is read in using <code>readOGR()</code> from the <code>rgdal</code> package. The <code>dsn</code> points to the folder where the shape file components are stored and <code>layer</code> is the layer name of the shape file. This file is then stored in a spatial data frame as <code>tracts</code>. If the shape file is loaded correctly the R-console will output a small summary of the file, such as the source and number of features.</p>
+<pre class="r"><code>census.16 &lt;- read.csv(&quot;./data/CensusTractData.csv&quot;)
+tracts &lt;- readOGR(dsn = &quot;./data&quot;, layer = &quot;Vic_Census&quot;)</code></pre>
+<pre><code>## OGR data source with driver: ESRI Shapefile 
+## Source: &quot;/home/connor/schoolwork_2020/first_semester/geog418/assignments/assignment3/kingschultz21.github.io/data&quot;, layer: &quot;Vic_Census&quot;
+## with 78 features
+## It has 2 fields</code></pre>
+</div>
+<div id="merging-data" class="section level2">
+<h2>Merging Data</h2>
+<p>Now that we have both spatial and attribute data loaded into R, we can merge the data together using an attribute join. The <code>merge()</code> function accepts two data frames as input and joins them based on a common attribute. Both files share a “GUID” attribute or Geographical ID so it will be used as the common attribute. The joined data frame is then stored in the <code>crd.data</code> variable. The following two lines remove all <em>na</em> values from the data set for the attributes of interest: median household income and post-secondary education. <code>print(crd.data)</code> gives a summary of the spatial data frame and is a way of checking that the data has been added successfully.</p>
+<pre class="r"><code>crd.data &lt;- merge(tracts, census.16, by = &quot;GUID&quot;)
+crd.data &lt;- crd.data[!is.na(crd.data$MInc),]
+crd.data &lt;- crd.data[!is.na(crd.data$Psecondary),]
+print(crd.data)</code></pre>
+<pre><code>## class       : SpatialPolygonsDataFrame 
+## features    : 74 
+## extent      : 3903547, 3974156, 1910542, 1962451  (xmin, xmax, ymin, ymax)
+## crs         : +proj=lcc +lat_1=49 +lat_2=77 +lat_0=63.390675 +lon_0=-91.86666666666666 +x_0=6200000 +y_0=3000000 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0 
+## variables   : 103
+## names       :       GUID,      CTUID,   CUID,   Pop, PopCh,   PopD,   Area, Age0yrs, Age15yrs, Age65yrs, AvgAge, Detach, Apart, SemiD, Row, ... 
+## min values  :    9350001, 9350001.00,      1,   332,    -2,   21.1,    0.5,     105,      210,       20,   29.2,     70,     0,     0,   0, ... 
+## max values  : 9350180.06, 9350180.06, 180.06, 10393,  44.2, 7582.6, 221.58,    2000,     7300,     2410,   56.5,   2715,  3185,   315, 460, ...</code></pre>
+</div>
+<div id="data-visualization" class="section level2">
+<h2>Data Visualization</h2>
+<p>Before we begin our analysis, we can explore our data and visualize it using the <code>tmap</code> package. The following code is the general syntax for constructing a map using <code>tmap</code>, and if you are familiar with the R-package <code>ggplot2</code> the syntax should feel very similar. <code>tmshape()</code> specifies the spatial data frame to be visualized and <code>tm_polygons()</code> provides an interface for accessing the attribute data of the data frame. The <code>col</code> variable is the vector in which we would like to access, which for this example is household median income. The <code>style</code> variable specifies the classification algorithm and <code>n</code> specifies the number of classes.</p>
+<pre class="r"><code>map_PopDensMInc &lt;- tm_shape(crd.data) + 
+  tm_polygons(col = &quot;MdInc&quot;, 
+              title = &quot;Median Household Income&quot;,
+              style = &quot;jenks&quot;,
+              palette = &quot;-RdGy&quot;, n = 6)
+
+map_PopDensMInc</code></pre>
+<p><img src="index_files/figure-html/tmap2-1.png" width="672" /></p>
+<p>The same process was repeated for the post-secondary education attribute with the same number of classes and the same classification algorithm.</p>
+<p><img src="index_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<p>To further visualize the data, we can visualize a neighbor network over the CRD. The function <code>poly2nb()</code> from the <code>spdep</code> package constructs a list of neighbors from a spatial data frame. The function <code>nb2lines()</code>, also from the <code>spdep</code> package creates a network from the neighbors list with an arc from each polygons centroid to the centroid of each neighboring polygon. The network stored in <code>crd.net</code> can then be visualized on top of the CRD by using <code>tmap</code>.</p>
+<pre class="r"><code>crd.nb &lt;- poly2nb(crd.data)
+crd.net &lt;- nb2lines(crd.nb,coords=coordinates(crd.data))
+
+tm_shape(crd.data) + tm_borders(col=&#39;grey&#39;) +
+  tm_fill(col = &#39;lightgrey&#39;, alpha = 0.1)+
+  tm_shape(crd.net) + tm_lines(col=&#39;red&#39;)</code></pre>
+<p><img src="index_files/figure-html/network1-1.png" width="672" /></p>
+<p>The <code>poly2nb()</code> function can also take a parameter called <code>queen</code> as input in addition to the spatial data frame. This parameter is set to TRUE by default. If <code>queen == TRUE</code> then polygons sharing a single boundary point meet the neighbor criteria. If <code>queen == FALSE</code> then polygons must share more than one boundary point to meet the neighbor criteria. The following code overlays the two networks, one where <code>queen == TRUE</code> (red) and one where <code>queen == FALSE</code> (blue) to visually show the difference.</p>
+<pre class="r"><code>crd.nb2 &lt;- poly2nb(crd.data, queen = FALSE)
+crd.net2 &lt;- nb2lines(crd.nb2,coords=coordinates(crd.data))
+
+tm_shape(crd.data) + tm_borders(col=&#39;grey&#39;) +
+  tm_fill(col = &#39;lightgrey&#39;, alpha = 0.1)+
+  tm_shape(crd.net) + tm_lines(col=&#39;red&#39;, lwd = 1)+
+  tm_shape(crd.net2) + tm_lines(col=&#39;blue&#39;, lwd = 1)</code></pre>
+<p><img src="index_files/figure-html/network2-1.png" width="672" /></p>
+</div>
+<div id="neighborhood-weights-matrix" class="section level2">
+<h2>Neighborhood Weights Matrix</h2>
+<p>The neighbors list <code>crd.nb</code> constructed previously is binary and only shows if polygons are neighbors or not. In order to add weights to the neighbors list, the function <code>nb2listw()</code> from the <code>spdep</code> package is used. This function takes a binary list of neighbors (<code>crd.nb</code>) and adds spatial weights. The <code>zero.policy</code> parameter specifies whether or not to allow weight vectors of length zero and the <code>style</code> parameter specifies the coding scheme. <code>&quot;W&quot;</code> indicates that a row-standardized coding scheme will be used. The resulting list of weighted neighbors is stored in <code>crd.lw</code>. Printing this list provides a summary of the data.</p>
+<pre class="r"><code>crd.lw &lt;- nb2listw(crd.nb, zero.policy = TRUE, style = &quot;W&quot;)
+print.listw(crd.lw, zero.policy = TRUE)</code></pre>
+<pre><code>## Characteristics of weights list object:
+## Neighbour list object:
+## Number of regions: 74 
+## Number of nonzero links: 424 
+## Percentage nonzero weights: 7.742878 
+## Average number of links: 5.72973 
+## 
+## Weights style: W 
+## Weights constants summary:
+##    n   nn S0       S1       S2
+## W 74 5476 74 29.46931 322.5924</code></pre>
+</div>
+<div id="lag-means-statistic" class="section level2">
+<h2>Lag Means Statistic</h2>
+<p>Now that we have created a weighted list of neighbors (<code>crd.lw</code>), we can visualize or data, taking spatial dependence into account. The function <code>lag.listw()</code> from the <code>spdep</code> package outputs a vector of polygons that is a weighted sum of the values at neighboring locations specified by <code>crd.data$MDInc</code> and <code>crd.lw</code>. The output vector is attached to the <code>crd.data</code> spatial data frame and then mapped using <code>tmap</code>. The following code calculates the spatially lagged household median income variable <code>crd.data$IncLagMeans</code>.</p>
+<pre class="r"><code>crd.data$IncLagMeans = lag.listw(crd.lw, crd.data$MdInc, zero.policy = TRUE)
+map_LagMean &lt;- tm_shape(crd.data) + 
+  tm_polygons(col = &quot;IncLagMeans&quot;, 
+              title = &quot;Median Household Income\nLagged Means&quot;, 
+              style = &quot;jenks&quot;, 
+              palette = &quot;-RdGy&quot;, n = 6) 
+map_LagMean</code></pre>
+<p><img src="index_files/figure-html/lagmeans-1.png" width="672" /></p>
+<p>The same process is repeated for the post-secondary education variable to create a spatially lagged post-secondary education vector <code>crd.data$PSLagMeans</code>.</p>
+<p><img src="index_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>The map of spatially lagged median household income shows some indications of spatial dependence when compared to its non-spatially lagged counterpart produced previously. The spatially lagged post-secondary education map is similar to its non-spatially lagged counterpart and does not visually show indications of spatial dependence.</p>
+</div>
+<div id="morans-i-statistic" class="section level2">
+<h2>Morans I Statistic</h2>
+<p>In order to determine if there is spatial auto correlation between census tracts and a specific attribute (median household income, post-secondary education), the Morans I statistic is used. The Global Morans I is a measure of clustering of all the data and produces one measure for the entire data set. Alternatively, the Local Morans I is a measure of clustering in the individual units (Census Tracts) of a data set, and produces a measure for each unit. A Morans I value of 0 indicates a random distribution, a value less than 0 indicates dispersion and a value greater than 0 indicates clustering. Both the Global and Local Morans I are calculated below.</p>
+<div id="global-morans-i" class="section level3">
+<h3>Global Morans I</h3>
+<p>The Global Morans I measures the overall clustering or spatial auto correlation of a data set. In order to calculate the Global Morans I, the <code>moran.test()</code> function from the <code>spdep</code> package is used. This accepts an attribute vector (<code>crd.data$MdInc</code>) as well as a weighted list of neighbors (<code>crd.lw</code>) as input and returns a list of Morans I data such as the Morans I statistic and p-value. Printing this variable (<code>mi</code>) provides a summary of the Morans I data. The range of Morans I values can be determined by using the <code>moran.range()</code> function. The Morans I value, the Expected Morans I value and the variance can be extracted from <code>mi</code> by accessing the estimate vector of <code>mi</code> (<code>mi$estimate[[]]</code>). Once these values are extracted the z-score can be determined by <span class="math inline">\(z = (Mi - Ei) / \sqrt var\)</span>. The following code shows the calculation of the Global Morans I as well as the z-score for median household income in the CRD.</p>
+<pre class="r"><code>mi &lt;- moran.test(crd.data$MdInc, crd.lw, zero.policy = TRUE)
+print(mi)</code></pre>
+<pre><code>## 
+##  Moran I test under randomisation
+## 
+## data:  crd.data$MdInc  
+## weights: crd.lw    
+## 
+## Moran I statistic standard deviate = 2.2665, p-value = 0.01171
+## alternative hypothesis: greater
+## sample estimates:
+## Moran I statistic       Expectation          Variance 
+##       0.143170949      -0.013698630       0.004790316</code></pre>
+<pre class="r"><code>moran.range &lt;- function(lw) {
+  wmat &lt;- listw2mat(lw)
+  return(range(eigen((wmat + t(wmat))/2)$values))
+}
+cat(&quot;moran range: &quot;,moran.range(crd.lw))</code></pre>
+<pre><code>## moran range:  -0.8193252 1.082105</code></pre>
+<pre class="r"><code>mI &lt;- mi$estimate[[1]]
+eI &lt;- mi$estimate[[2]]
+var &lt;- mi$estimate[[3]]
+
+z &lt;- (mI - eI) / (sqrt(var))
+cat(&quot;z-score: &quot;, z) </code></pre>
+<pre><code>## z-score:  2.266505</code></pre>
+<p>The same process is repeated to determine the Global Morans I and z-score for post-secondary education in the CRD.</p>
+<pre><code>## 
+##  Moran I test under randomisation
+## 
+## data:  crd.data$Psecondary  
+## weights: crd.lw    
+## 
+## Moran I statistic standard deviate = 1.0459, p-value = 0.1478
+## alternative hypothesis: greater
+## sample estimates:
+## Moran I statistic       Expectation          Variance 
+##       0.059720205      -0.013698630       0.004927578</code></pre>
+<pre><code>## moran range:  -0.8193252 1.082105</code></pre>
+<pre><code>## z-score:  1.045901</code></pre>
+<p>The z-score and p-value of the Global Morans I indicate that there is statistically significant spatial auto correlation of median household income in the data set. This means that there are indications of clusters of similar median household income in the CRD. Alternatively, the z-score and p-value for post-secondary education indicate that the Global Morans I statistic is not statistically significant.</p>
+</div>
+<div id="local-morans-i" class="section level3">
+<h3>Local Morans I</h3>
+<p>The Local Morans I measures the clustering or spatial auto correlation of units within a data set, in our case census tracts. The Local Morans I statistic is calculated using the <code>localmoran()</code> function in the <code>spdep</code> package. This function uses the same inputs as the <code>moran.test()</code> function used in the Global Morans I calculation. This function returns a list of Local Morans I data such as the Morans I statistics and p-values for each unit. This list is stored in a data frame <code>lisa.test</code> and the vectors are then added to the <code>crd.data</code> spatial data frame by accessing the values stored in <code>lisa.test</code>. The following code shows the calculation of the Local Morans I for the median household income attribute.</p>
+<pre class="r"><code>lisa.test &lt;- localmoran(crd.data$MdInc, crd.lw)
+
+crd.data$Ii_MInc &lt;- lisa.test[,1]
+crd.data$E.Ii_MInc&lt;- lisa.test[,2]
+crd.data$Var.Ii_MInc&lt;- lisa.test[,3]
+crd.data$Z.Ii_MInc&lt;- lisa.test[,4]
+crd.data$P_MInc&lt;- lisa.test[,5]</code></pre>
+<p>The same process is repeated to determine the Local Morans I for post-secondary education in the CRD.</p>
+<p><br/> The Local Morans I statistic calculated above can then be visualized using <code>tmap</code>. The colour of each census tract will represent the Morans I statistic for that given census tract. The following code shows the thematic mapping of the Local Morans I of median household income for each census tract.</p>
+<pre class="r"><code>map_LISA &lt;- tm_shape(crd.data) + 
+  tm_polygons(col = &quot;Ii_MInc&quot;, 
+              title = &quot;Local Moran&#39;s I: Median Household Income&quot;, 
+              style = &quot;jenks&quot;, 
+              palette = &quot;-RdGy&quot;, n = 6) 
+map_LISA</code></pre>
+<p><img src="index_files/figure-html/lisa%20map-1.png" width="672" /></p>
+<p>The same process as above is repeated to produce a thematic map of the Local Morans I of post-secondary education for each census tract.</p>
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>The map of Local Morans I for median household income shows indications of clustering in the center census tracts as well some indications of clustering in the lower right quadrant of the CRD. Alternatively, the map of Local Morans I for post-secondary education follow a more random distribution as well as having a smaller range of Local Morans I values.</p>
+<p><br/> The Local Morans I statistic can be plotted using the <code>moran.plot()</code> function contained in the <code>spdep</code> package. The plot shows the spatial data versus its spatially lagged counterpart (<code>crd.lw</code>). The following code shows the creation of a Local Morans I plot for median household income CRD.</p>
+<pre class="r"><code>moran.plot(crd.data$MdInc, crd.lw, zero.policy=NULL, spChk=NULL, labels=NULL, xlab=&quot;Median Household Income&quot;, 
+           ylab=&quot;Spatially Lagged Median Household Income&quot;, quiet=NULL)</code></pre>
+<p><img src="index_files/figure-html/moranplot-1.png" width="672" /></p>
+<p>The same process shown above is repeated to produce a Local Morans I plot for post-secondary education in the CRD.</p>
+<p><img src="index_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>Each point on the plot represents a census tract and the highlighted points are census tracts in which the p-value for the Local Morans I is statistically significant. The line on each plot shows the linear relationship between the data and the lag. The first plot of median household income shows that as median household income increases, so does spatially lagged median household income. This indicates spatial auto correlation. The second plot of post-secondary education shows a similar relationship, however the slope of the line is much closer to that of a random distribution.</p>
+</div>
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<p>The goal of this tutorial was to show the power and effectiveness of the R-programming language applied to spatial statistics. In a relatively condensed and simple process, we have transformed raw census data and a basic shape file of census tracts into figures and data describing spatial auto correlation for a given study area. Many of these processes can be performed in a stand alone desktop GIS environment, however the flexibility and modifiability of code is unparalleled by any GIS project. The analyses in performed in this tutorial can be used in a larger program with a greater scope, or the methods can be applied to other regions or census tracts to perform a spatial auto correlation analysis relating to the topic at hand. In summary, R has proven itself to be an effective tool for spatial data science projects, and with all the packages created by the open source community, it is easier than ever to perform complex spatial analysis methods such as those done in this tutorial.</p>
+<p><br/></p>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
